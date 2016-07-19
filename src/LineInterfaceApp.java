@@ -1,7 +1,5 @@
 import OneControlInterface.Model.LineTextInterface;
-import OneControlInterface.Model.Model.UserDefinedValue;
-import OneControlInterface.Model.Model.Value;
-import javafx.application.Application;
+import OneControlInterface.Model;
 
 import java.util.Scanner;
 

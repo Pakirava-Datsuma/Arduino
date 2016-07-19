@@ -1,4 +1,4 @@
-package OneControlInterface.Model.Model;
+package OneControlInterface.Model;
 
 /**
  * Created by swanta on 01.07.16.

@@ -1,4 +1,4 @@
-package OneControlInterface.Model.Model;
+package OneControlInterface.Model;
 
 import java.util.HashSet;
 import java.util.Set;
