@@ -51,7 +51,7 @@ public class MenuItem {
     }
 
     String getText() {
-        return " caption:"+caption+ " name:"+valueCaption + " id:"+valueID;
+        return " name:"+caption+ " name:"+valueCaption + " id:"+valueID;
     }
 
     public static void makeSiblings(MenuItem[] activities) {

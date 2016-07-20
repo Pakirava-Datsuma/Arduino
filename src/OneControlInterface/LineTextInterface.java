@@ -17,7 +17,7 @@ public class LineTextInterface {
         model = view.getModel();
     }
 
-    public <T extends Value> void addValue(T value) {
+    public <T extends ComputedValue> void addValue(T value) {
         model.add(value);
     }
 

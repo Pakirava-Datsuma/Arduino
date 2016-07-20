@@ -1,5 +1,7 @@
+import OneControlInterface.Model.*;
 import OneControlInterface.Model.LineTextInterface;
-import OneControlInterface.Model;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 
 import java.util.Scanner;
 
@@ -12,72 +14,149 @@ public class LineInterfaceApp{
 
     public static void main(String[] args) {
 
-        final String str_temp = "T";
-        Float temp = 12f;
-        final String str_tempMax = "T_max";
-        Float tempMax = 14f;
-        final String str_tempWindow = "dt";
-        Float tempWindow = 2f;
+        Model model = new Model();
 
-        final String str_sysTime = "time_on";
-        Long sysTime= Long.valueOf(0);
-        final String str_sysTimeLoop = "t_loop";
-        Long sysTimeLoop = Long.valueOf(0);
-
-        final String str_engineTimeLast =  "engineTimeLast";
-        Long engineTimeLast;
-        final String str_engineTimeTotal =  "engineTimeTotal";
-        Long engineTimeTotal = Long.valueOf(0);
-        final String str_engineTimeOn = "engineTimeOn";
-        Long engineTimeOn = Long.valueOf(0);
-        final String str_engineTimeOff = "engineTimeOff";
-        Long engineTimeOff = Long.valueOf(0);
-        final String str_engineConsumptionTotal = "p_engine_Total";
-        Float engineConsumptionTotal = 0f;
-        final String str_engineConsumptionPerHour = "p_engine_const";
-        Float engineConsumptionPerHour = 2f;
-        final String str_engineConsumptionDaily = "P_t";
-        Float engineConsumptionDaily = 0f;
-        final String str_engineEffect = "P_eff";
-        Float engineEffect = 0f;
-        final String str_engineState = "engineStatus";
-        Float engineState = 0f;
+        Value sysTime = model.addValue(
+                new ComputedValue("time_on") {
+                    @Override
+                    protected float computeValue() {
+                        return currentTimeMillis()/1000;
+                    }
+                });
+        Value sysTimeLoop = model.addValue(
+                new ComputedValue("t_loop") {
+                    private float oldTime = sysTime.getValue();
+                    @Override
+                    protected float computeValue() {
+                        float newTime = sysTime.getValue();
+                        this.value.set(newTime - this.oldTime);
+                        this.oldTime = newTime;
+                        return this.value.getValue();
+                    }
+                });
+        Value actualTemperature = model.addValue(new Thermometer("T"));
+        Value maximumLimitTemperature = model.addValue(
+                new UserInputValue("T_max", 14f, 0.1f));
+        Value tempWindow = model.addValue(
+                new UserInputValue(0f, "dt", 2f, 0.1f));
+        Value engineState = model.addValue(
+                new ComputedValue("engineStatus") {
+                    {
+                        value.set(-1f);
+                    }
+                    @Override
+                    protected float computeValue() {
+                        float result;
+                        float t = actualTemperature.getValue();
+                        float tmax = maximumLimitTemperature.getValue();
+                        float dt = tempWindow.getValue();
+                        float state = Math.signum(value.getValue());
+                        if (    (   (state > 0)
+                                    && (t < tmax - dt))
+                                || ((state < 0)
+                                    && (t > tmax))){
+                            value.set(-value.getValue());
+                        }
+                        return value.getValue();
+                    }
+                });
+        Value engineTimeOn = model.addValue(
+                new ComputedValue("engineTimeOn") {
+                    {
+                        super.bind(model.getValue(engineState.getName()));
+                        this.addListener(
+                                new InvalidationListener() {
+                                    @Override
+                                    public void invalidated(Observable observable) {
+                                        if (engineState.getValue() > 0f)
+                                            value.set(sysTime.getValue());
+                                    }
+                                }
+                        );
+                    }
+                    @Override
+                    protected float computeValue() {
+                        return value.getValue();
+                    }
+                });
+        Value engineTimeLast = model.addValue(
+                new ComputedValue("engineTimeLast") {
+//                    TODO bind to engineState
+                    @Override
+                    protected float computeValue() {
+                        return value.getValue();
+                    }
+                });
+        Value engineTimeTotal =  model.addValue(
+                new ComputedValue("engineTimeTotal") {
+                    @Override
+                    protected float computeValue() {
+                        return currentTimeMillis()/1000;
+                    }
+                });
+        Value engineTimeOff = model.addValue(
+                new ComputedValue("engineTimeOff") {
+                    @Override
+                    protected float computeValue() {
+                        return currentTimeMillis()/1000;
+                    }
+                });
+        Value engineConsumptionTotal = model.addValue(
+                new ComputedValue("p_engine_Total") {
+                    @Override
+                    protected float computeValue() {
+                        return currentTimeMillis()/1000;
+                    }
+                });
+        Value engineConsumptionPerHour = model.addValue(
+                new UserInputValue(0.1f, "p_engine_const", 2f, 0.1f));
+        Value engineConsumptionDaily = model.addValue(
+                new ComputedValue("P_t") {
+                    @Override
+                    protected float computeValue() {
+                        return currentTimeMillis()/1000;
+                    }
+                });
+        Value engineEffect = model.addValue(
+                new ComputedValue("P_eff") {
+                    @Override
+                    protected float computeValue() {
+                        return currentTimeMillis()/1000;
+                    }
+                });
 
         String menuConfig =
-        "0<Температура внутри<" +str_temp +
-            "|1<Настройки" +
-                "|2>температура включения>" + str_tempMax+
-                "|2>Температурное окно>"+ str_tempWindow+
-            "|1<Статистика" +
-                "|2=Время от сети=t="+str_sysTime+
-                "|2=Время мотора=t.м="+
-                "|2=Мощн с начала=P="+str_engineConsumptionTotal+
-                "|2=Мощн в день=P/день="+str_engineConsumptionDaily+
-                "|2=Эффект=P/град="+str_engineEffect;
-        LineTextInterface iface = new LineTextInterface(16, 2, menuConfig);
-        iface.addValue(new Value(str_temp, temp));
-        iface.addValue(new Value (str_engineState, engineState));
-        iface.addValue(new Value (str_engineTimeTotal, engineTimeTotal));
-        iface.addValue(new Value (str_engineTimeOn, engineTimeOn));
-        iface.addValue(new Value (str_engineTimeOff, engineTimeOff));
-        iface.addValue(new UserDefinedValue(str_tempMax, tempMax, 13f, 0.1f));
-        iface.addValue(new UserDefinedValue (0f, str_tempWindow, tempWindow , 2f, 0.1f));
-        iface.addValue(new UserDefinedValue (0.1f, str_engineConsumptionPerHour, engineConsumptionPerHour, 1f, 0.1f));
-        iface.addValue(new Value (str_sysTimeLoop, sysTimeLoop));
-        iface.addValue(new Value (str_sysTime, sysTime));
-        iface.addValue(new Value (str_engineConsumptionTotal, engineConsumptionTotal));
-        iface.addValue(new Value (str_engineConsumptionDaily, engineConsumptionDaily));
-        iface.addValue(new Value (str_engineEffect, engineEffect));
-        Relay relay = new Relay();
+        "0<Температура внутри<" + actualTemperature.getName()
+            +"|1<Статус"
+                +"|2=Время последнего сеанса="+ engineTimeLast.getName()
+                +"|2=Включился="+ engineTimeOn.getName()
+                +"|2=Выключился="+ engineTimeOff.getName()
+            +"|1<Статистика"
+                +"|2=Время от сети=t="+ sysTime.getName()
+                +"|2=Время мотора=t.м="+engineTimeTotal.getName()
+                +"|2=Мощн с начала=кВт="+ engineConsumptionTotal.getName()
+                +"|2=Мощн в день=кВт/1день="+ engineConsumptionDaily.getName()
+                +"|2=Эффект=кВт/1град="+ engineEffect.getName()
+                +"|2>Потребление мотора=кВт/ч="+ engineConsumptionTotal.getName()
+            +"|1<Настройки"
+                +"|2>температура включения>C>" + maximumLimitTemperature.getName()
+                +"|2>Температурное окно>C>"+ tempWindow.getName()
+                +"|2>Потребление мотора>кВт/ч>"+ engineConsumptionTotal.getName()
+
+                ;
+
+        LineTextInterface iface = new LineTextInterface(16, 2, menuConfig, model);
+
+        Relay relay = new Relay(engineState);
         Scanner scanner = new Scanner(System.in);
+
         boolean exit = false;
         do { //loop
-            Thermometer thermometer = new Thermometer();
-            temp = thermometer.getTemperature(temp);
-            sysTime += currentTimeMillis()/1000;
+            actualTemperature.setValue(thermometer.getTemperature());
+            sysTime.setValue(sys currentTimeMillis()/1000;
 
 
-            if (temp > tempMax && engineState < 0.5)
+            if (actualTemperature > maximumLimitTemperature && engineState < 0.5)
                 TRIG_engineOn:{
 
                     relay.enable();
@@ -85,7 +164,7 @@ public class LineInterfaceApp{
                     engineState = 1f;
 
                 }
-            else if (temp < (tempMax - tempWindow) && engineState > 0.5)
+            else if (actualTemperature < (maximumLimitTemperature - tempWindow) && engineState > 0.5)
 
                 TRIG_engineOff:{
 
@@ -146,8 +225,18 @@ public class LineInterfaceApp{
     }
 
     private static class Thermometer {
-        public Float getTemperature(Float temp) {
-            return Value.random(temp);
+        private ComputedValue temperature;
+        protected ComputedValue Thermometer (String name){
+            temperature = new ComputedValue(name) {
+                @Override
+                protected float computeValue() {
+                    return getTemperature();
+                }
+            };
+            return temperature;
+        }
+        public Float getTemperature() {
+            return ComputedValue.random(temperature.getValue());
         }
     }
 }

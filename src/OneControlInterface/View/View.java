@@ -105,7 +105,7 @@ public class View {//extends Application{
             }
                 MenuItem item = new MenuItem(caption, varCaption, varID);
             int itemLevel = Integer.valueOf(level);
-            System.out.println("parsed = level:"+level+">"+itemLevel + " caption:"+caption+ " var:"+varCaption + " id:"+varID);
+            System.out.println("parsed = level:"+level+">"+itemLevel + " name:"+caption+ " var:"+varCaption + " id:"+varID);
             if (menus.isEmpty()) {
                     rootMenu = new Menu(itemLevel);
                     menus.add(rootMenu);
