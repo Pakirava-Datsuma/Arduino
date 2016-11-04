@@ -17,12 +17,24 @@
 
 DHT dht(DHTPIN, DHTTYPE);
 int led = 13;
+//blink mode: positive blinks shows how value grater than normal
+// negative blinks shows how value lesser than normal
 
+float humidityPercentsPerBlink = 5/1;
+float normalHumidity = 50.0;
+float humidityRounding = +1;
+
+boolean inverseBlinks = false;
 
 void setup() {
-  //Serial.begin(9600);  
+//  Serial.begin(9600);  
   dht.begin();
-  pinMode(led, OUTPUT);     
+  pinMode(led, OUTPUT);
+
+  //show settings
+  //percents per blink
+  blinkDigit(  humidityPercentsPerBlink );
+  pause();
   
 /* 
 //test digit output on startup
@@ -39,14 +51,26 @@ void setup() {
 void loop() {
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  int h = (dht.readHumidity() + 3.0) / 10;
+  pause();
+  float humidity = dht.readHumidity();
+//  Serial.println(humidity);
 //  float t = dht.readTemperature();
 
   // check if returns are valid, if they are NaN (not a number) then something went wrong!
   //if (! (isnan(t) || isnan(h))) {
-  if (! isnan(h)) {
-    pause();
-    blinkDigit(h);
+  if (! isnan(humidity)) {
+
+    humidity +=  humidityRounding;
+    //normalizing output
+    float normalizedHumidity = abs(humidity - normalHumidity);
+    // blinks count and mode
+    inverseBlinks = humidity < normalHumidity;
+    int blinksCount = normalizedHumidity / humidityPercentsPerBlink;
+    // negative blinks must be ceil (+0.5 -> 0, -0.5 -> 1)
+    if (inverseBlinks) blinksCount += 1;
+//    Serial.println(blinksCount);
+    
+    blinkDigit(blinksCount);
   }
 }
 
@@ -57,10 +81,13 @@ void pause() {
 }
 
 void blink(int time1, int time2) {
-  digitalWrite(led, HIGH);
+  int blinkState, unblinkState;
+  blinkState = inverseBlinks ? LOW : HIGH;
+  unblinkState = inverseBlinks ? HIGH : LOW;
+  digitalWrite(led, blinkState);
   delay(time1);
   //Serial.print(0);
-  digitalWrite(led, LOW);
+  digitalWrite(led, unblinkState);
   delay(time2);
 }
 
