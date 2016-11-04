@@ -24,6 +24,8 @@ void setup() {
   dht.begin();
   pinMode(led, OUTPUT);     
   
+/* 
+//test digit output on startup
   //Serial.println("test:");
   for (int i = 0; i < 13; i++) {
     pause();
@@ -31,7 +33,7 @@ void setup() {
     //Serial.println(i);
     blinkDigit(i);
   }    
-
+*/
 }
 
 void loop() {
