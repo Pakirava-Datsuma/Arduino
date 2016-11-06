@@ -1,9 +1,110 @@
-void setup() {
-  // put your setup code here, to run once:
+//const
+final int modeNormal = 1;
+final int modeStandBy = 2;
+final int modeSleep = 3;
+final int timeLedOnSleepMode = 3000;
+final int timeLedOffSleepMode = 3000;
 
+//pins
+final int pinInControlButton = 5;
+final int pinInControlComp = 6;
+final int pinInControlNormalMode = 7;
+final int pinInControlHeadset = 8;
+final int pinInDefenceIpositive1 = ;
+final int pinInDefenceInegative1 = ;
+final int pinInDefenceIpositive2 = ;
+final int pinInDefenceInegative2 = ;
+final int pinInDefenceA1 = ;
+final int pinInDefenceA2 = ;
+
+final int pinOutControlAmplifierEnable = ;
+final int pinOutControlAmplifierPower = ;
+final int pinOutControlHeadsetPower = ;
+final int pinOutControlSleepMode = ;
+final int pinOutIndicateStandByModeNormal = ;
+final int pinOutIndicateStandByModeNotNormal = ;
+final int pinOutIndicateHeadsetMode = ;
+final int pinOutErrorI1 = ;
+final int pinOutErrorI2 = ;
+final int pinOutErrorA1 = ;
+final int pinOutErrorA2 = ;
+
+//flags
+bool isNormalModeRequested;
+bool isCompOn;
+bool isHeadsetRequested;
+
+//
+volatile bool ledNotNormalMode;
+
+void setup() {
+	pinMode(pinInControlNormalMode, DIGITAL);
+	
+	pinMode(pinIsCompOn, DIGITAL);
+	
+	
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+	start:
+	
+	isNormalModeRequested = (pinRead (inputIsNormalModeRequested) == HIGH);
+	isCompOn = (pinRead(pinIsCompOn) == LOW);
+	isHeadsetRequested = (pinRead(pinIsHeadsetOn) == LOW);
+	isButtonPressed = (pinRead(pinIsButtonPressed) == HIGH);
+	
+	
+	detachInterrupts();
+	switch (mode)
+	{
+		case modeNormal
+			work();
+			break;
+		case modeStandBy
+			standBy();
+			break;
+		case modeSleep
+			sleep();
+			break;
+	}
+
+	attachInterrupts()
+	while (1) {}	
+}
+
+void work() {
+	
+}
+
+void sleep() {
+	attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
+	ISR_SleepModeLEDBlink();
+	
+	digitalWrite(pinOutControlSleepMode, HIGH);
+	digitalWrite(pinOutIndicateStandByModeNormal, LOW);
+	digitalWrite(pinOutControlAmplifierEnable, LOW);
+	digitalWrite(pinOutControlAmplifierPower, LOW);
+	digitalWrite(pinOutControlHeadsetPower, LOW);
+	
 
 }
+
+void standBy() {
+}
+
+
+void ISR_SleepModeBlink () {
+	digitalWrite(pinOutIndicateStandByModeNormal, 
+		ledNotNormalMode ? HIGH : LOW
+		);
+	ledNotNormalMode = !ledNotNormalMode;
+	attachInterrupt(timer, ISR_SleepModeLEDBlink, 
+		ledNotNormalMode ? timeLedOnSleepMode : timeLedOffSleepMode
+		);
+}
+
+
+void ISR_ButtonWhenSlept () {
+	mode = modeNormal
+}
+
