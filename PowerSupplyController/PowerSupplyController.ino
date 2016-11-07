@@ -36,6 +36,7 @@ bool isHeadsetRequested;
 
 //
 volatile bool ledNotNormalMode;
+volatile bool ledHeadsetMode;
 
 void setup() {
 	pinMode(pinInControlNormalMode, DIGITAL);
@@ -77,21 +78,30 @@ void work() {
 }
 
 void sleep() {
+	//interrupts
 	attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
 	ISR_SleepModeLEDBlink();
 	
+	//Output
 	digitalWrite(pinOutControlSleepMode, HIGH);
 	digitalWrite(pinOutIndicateStandByModeNormal, LOW);
 	digitalWrite(pinOutControlAmplifierEnable, LOW);
 	digitalWrite(pinOutControlAmplifierPower, LOW);
 	digitalWrite(pinOutControlHeadsetPower, LOW);
-	
-
 }
 
 void standBy() {
-}
+	//interrupts
+	ISR_AudioOutput();
+	attachInterrupt(digitalPinToInterrupt(pinInControlHeadset), ISR_AudioOutput, FALLING);
 
+	//Outputs
+	digitalWrite(pinOutControlSleepMode, LOW);
+	digitalWrite(pinOutIndicateStandByModeNormal, LOW);
+	digitalWrite(pinOutControlAmplifierEnable, LOW);
+	digitalWrite(pinOutControlAmplifierPower, LOW);
+	digitalWrite(pinOutControlHeadsetPower, LOW);	
+}
 
 void ISR_SleepModeBlink () {
 	digitalWrite(pinOutIndicateStandByModeNormal, 
@@ -103,8 +113,13 @@ void ISR_SleepModeBlink () {
 		);
 }
 
-
 void ISR_ButtonWhenSlept () {
 	mode = modeNormal
 }
 
+void ISR_AudioOutput() {
+	digitalWrite(pinOutIndicateHeadsetMode, 
+		ledHeadsetMode ? HIGH : LOW
+		);
+	ledHeadsetMode = !ledHeadsetMode;
+}
