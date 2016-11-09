@@ -2,6 +2,7 @@
 final int modeNormal = 1;
 final int modeStandBy = 2;
 final int modeSleep = 3;
+final int modeFailure = 4;
 final int timeLedOnSleepMode = 3000;
 final int timeLedOffSleepMode = 3000;
 
@@ -54,53 +55,79 @@ void loop() {
 	isHeadsetRequested = (pinRead(pinIsHeadsetOn) == LOW);
 	isButtonPressed = (pinRead(pinIsButtonPressed) == HIGH);
 	
-	
-	detachInterrupts();
+	bool isModeChanged = (mode != oldMode);
+	oldMode = mode;
 	switch (mode)
 	{
+		case modeFailure
+			failure();
+			break;
 		case modeNormal
-			work();
+			work(isModeChanged);
 			break;
 		case modeStandBy
-			standBy();
+			standBy(isModeChanged);
 			break;
 		case modeSleep
-			sleep();
+			sleep(isModeChanged);
 			break;
 	}
-
-	attachInterrupts()
-	while (1) {}	
 }
 
-void work() {
+void work(bool isNeedInitialize) {
+	if (isNeedInitialize)
+	{
+		
+	}
+	else
+	{
+		if (isHeadsetButtonPressed) changeHeadsetMode(!isHeadsetRequested);
+		if (isFailure) changeMode(modeFailure);
+		if (isPowerButtonPressed) changeMode(modeStandBy);
+	}
 	
 }
 
-void sleep() {
-	//interrupts
-	attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
-	ISR_SleepModeLEDBlink();
-	
-	//Output
-	digitalWrite(pinOutControlSleepMode, HIGH);
-	digitalWrite(pinOutIndicateStandByModeNormal, LOW);
-	digitalWrite(pinOutControlAmplifierEnable, LOW);
-	digitalWrite(pinOutControlAmplifierPower, LOW);
-	digitalWrite(pinOutControlHeadsetPower, LOW);
+void sleep(bool isNeedInitialize) {
+	if (isNeedInitialize)
+	{
+		//interrupts
+		attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
+		ISR_SleepModeLEDBlink();
+		
+		//Output
+		digitalWrite(pinOutControlSleepMode, HIGH);
+		digitalWrite(pinOutIndicateStandByModeNormal, LOW);
+		digitalWrite(pinOutControlAmplifierEnable, LOW);
+		digitalWrite(pinOutControlAmplifierPower, LOW);
+		digitalWrite(pinOutControlHeadsetPower, LOW);
+	}
+	else
+	{
+		if (isPowerButtonPressed) changeMode(modeNormal);
+	}
 }
 
-void standBy() {
-	//interrupts
-	ISR_AudioOutput();
-	attachInterrupt(digitalPinToInterrupt(pinInControlHeadset), ISR_AudioOutput, FALLING);
+void standBy(bool isNeedInitialize) {
+	if (isNeedInitialize)
+	{
+		//interrupts
+		ISR_AudioOutput();
+		attachInterrupt(digitalPinToInterrupt(pinInControlHeadset), ISR_AudioOutput, FALLING);
 
-	//Outputs
-	digitalWrite(pinOutControlSleepMode, LOW);
-	digitalWrite(pinOutIndicateStandByModeNormal, LOW);
-	digitalWrite(pinOutControlAmplifierEnable, LOW);
-	digitalWrite(pinOutControlAmplifierPower, LOW);
-	digitalWrite(pinOutControlHeadsetPower, LOW);	
+		//Outputs
+		digitalWrite(pinOutControlSleepMode, LOW);
+		digitalWrite(pinOutIndicateStandByModeNormal, LOW);
+		digitalWrite(pinOutControlAmplifierEnable, LOW);
+		digitalWrite(pinOutControlAmplifierPower, LOW);
+		digitalWrite(pinOutControlHeadsetPower, LOW);	
+
+	}
+	else
+	{
+		if (isPowerButtonPressed) changeMode(modeNormal);
+		
+	}
 }
 
 void ISR_SleepModeBlink () {
