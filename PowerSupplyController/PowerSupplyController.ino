@@ -74,6 +74,40 @@ void loop() {
 	}
 }
 
+void changeMode (int newMode) {
+	if (oldMode != newMode) 
+		finalizeMode(oldMode);
+		initializeMode(newMode);
+		switch (oldMode)
+		{
+			case modeFailure
+				failure();
+				break;
+			case modeNormal
+				work(isModeChanged);
+				break;
+			case modeStandBy
+				standBy(isModeChanged);
+				break;
+			case modeSleep
+				sleep(isModeChanged);
+				break;
+		}
+}
+
+void failure() {
+	ISR_FailureModeBlink();
+	wait(timeFailureWait);
+	if (checkDefenceInputs())
+		sleepAfterFailure();
+	else
+		changeMode(Normal);
+}
+
+void ISR_FailureModeBlink() {
+	
+}
+
 void work(bool isNeedInitialize) {
 	if (isNeedInitialize)
 	{
