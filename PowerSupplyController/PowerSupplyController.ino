@@ -1,186 +1,189 @@
-//const
-final int modeNormal = 1;
-final int modeStandBy = 2;
-final int modeSleep = 3;
-final int modeFailure = 4;
-final int timeLedOnSleepMode = 3000;
-final int timeLedOffSleepMode = 3000;
+	//pins
+	enum pin { 
+		pinInControlButton = 5;
+		pinInControlComp = 6;
+		pinInControlNormalMode = 7;
+		pinInControlHeadset = 8;
+		pinInDefenceIpositive1 = ;
+		pinInDefenceInegative1 = ;
+		pinInDefenceIpositive2 = ;
+		pinInDefenceInegative2 = ;
+		pinInDefenceA1 = ;
+		pinInDefenceA2 = ;
 
-//pins
-final int pinInControlButton = 5;
-final int pinInControlComp = 6;
-final int pinInControlNormalMode = 7;
-final int pinInControlHeadset = 8;
-final int pinInDefenceIpositive1 = ;
-final int pinInDefenceInegative1 = ;
-final int pinInDefenceIpositive2 = ;
-final int pinInDefenceInegative2 = ;
-final int pinInDefenceA1 = ;
-final int pinInDefenceA2 = ;
-
-final int pinOutControlAmplifierEnable = ;
-final int pinOutControlAmplifierPower = ;
-final int pinOutControlHeadsetPower = ;
-final int pinOutControlSleepMode = ;
-final int pinOutIndicateStandByModeNormal = ;
-final int pinOutIndicateStandByModeNotNormal = ;
-final int pinOutIndicateHeadsetMode = ;
-final int pinOutErrorI1 = ;
-final int pinOutErrorI2 = ;
-final int pinOutErrorA1 = ;
-final int pinOutErrorA2 = ;
-
-//flags
-bool isNormalModeRequested;
-bool isCompOn;
-bool isHeadsetRequested;
-
-//
-volatile bool ledNotNormalMode;
-volatile bool ledHeadsetMode;
-
+		pinOutControlAmplifierEnable = ;
+		pinOutControlAmplifierPower = ;
+		pinOutControlHeadsetPower = ;
+		pinOutControlSleepMode = ;
+		pinOutIndicateStandByModeNormal = ;
+		pinOutIndicateStandByModeNotNormal = ;
+		pinOutIndicateHeadsetMode = ;
+		pinOutErrorI1 = ;
+		pinOutErrorI2 = ;
+		pinOutErrorA1 = ;
+		pinOutErrorA2 = ;
+	}
+	
+	volatile bool ledNotNormalMode;
+	volatile bool ledHeadsetMode;
+	
+	Modes modes;
+			
 void setup() {
 	pinMode(pinInControlNormalMode, DIGITAL);
-	
 	pinMode(pinIsCompOn, DIGITAL);
 	
-	
+	modes = new Modes();	
 }
 
 void loop() {
-	start:
-	
-	isNormalModeRequested = (pinRead (inputIsNormalModeRequested) == HIGH);
-	isCompOn = (pinRead(pinIsCompOn) == LOW);
-	isHeadsetRequested = (pinRead(pinIsHeadsetOn) == LOW);
-	isButtonPressed = (pinRead(pinIsButtonPressed) == HIGH);
-	
-	bool isModeChanged = (mode != oldMode);
-	oldMode = mode;
-	switch (mode)
-	{
-		case modeFailure
-			failure();
-			break;
-		case modeNormal
-			work(isModeChanged);
-			break;
-		case modeStandBy
-			standBy(isModeChanged);
-			break;
-		case modeSleep
-			sleep(isModeChanged);
-			break;
-	}
+	modes::processCurrentMode();
 }
 
-void changeMode (int newMode) {
-	if (oldMode != newMode) 
-		finalizeMode(oldMode);
-		initializeMode(newMode);
-		switch (oldMode)
-		{
-			case modeFailure
-				failure();
-				break;
-			case modeNormal
-				work(isModeChanged);
-				break;
-			case modeStandBy
-				standBy(isModeChanged);
-				break;
-			case modeSleep
-				sleep(isModeChanged);
-				break;
+class Modes {
+public:	
+	Modes () {}
+	
+	void process() {
+		checkIO();
+		currentMode::process();
+	}
+
+protected:
+	static Mode currentMode;
+	static Mode normalMode = new NormalMode();
+	static Mode sleepMode = new SleepMode();
+	static Mode standByMode = new StandByMode();
+	static Mode failureMode = new FailureMode();
+
+	static bool isNormalModeRequested;
+	static bool isCompOn;
+	static bool isHeadsetRequested;
+	
+
+	void changeMode (Mode newMode) {
+		isModeChanged = (currentMode != newMode);
+		if (isModeChanged) {
+			detachInterrupts();
+			if (currentMode != null) currentMode::finalize();
+			currentMode = newMode;
+			currentMode::initialize();
+			attachInterrupts();
 		}
-}
+	}
 
-void failure() {
-	ISR_FailureModeBlink();
-	wait(timeFailureWait);
-	if (checkDefenceInputs())
-		sleepAfterFailure();
-	else
-		changeMode(Normal);
-}
+	class Mode {
+		virtual void initialize();
+		virtual void process();
+		virtual void finalize();
+	}
 
-void ISR_FailureModeBlink() {
-	
-}
+	class NormalMode : Mode {
+		
+		NormalMode () {
+		}
+		void initialize () {
+//			HeadsetLED
+//			HeadsetButton
+			attachInterrupt(digitalPinToInterrupt(pinInControlHeadset), ISR_AudioOutput, FALLING);
+			
+//			ModeButton
+			attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_Sleep, FALLING);
+		}
+		void process() {
+			if (isHeadsetButtonPressed) changeHeadsetMode(!isHeadsetRequested);
+			if (isFailure) changeMode(failureMode);
+			if (isPowerButtonPressed) changeMode(standByMode);		
+		}
+		void finalize() {
+			
+		}
+		void ISR_AudioOutput() {
+			digitalWrite(pinOutIndicateHeadsetMode, 
+				ledHeadsetMode ? HIGH : LOW
+				);
+			ledHeadsetMode = !ledHeadsetMode;
+		}
+		void ISR_Sleep() {
+			}
+	}
 
-void work(bool isNeedInitialize) {
-	if (isNeedInitialize)
-	{
+	class SleepMode : Mode {
+		
+		final int timeLedOn = 3000;
+		final int timeLedOff = 3000;
+		
+		SleepMode () {
+		}
+		
+		void initialize () {
+			//interrupts
+			attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
+			ISR_SleepModeLEDBlink();
+			//Output
+			digitalWrite(pinOutControlSleepMode, HIGH);
+			digitalWrite(pinOutIndicateStandByModeNormal, LOW);
+			digitalWrite(pinOutControlAmplifierEnable, LOW);
+			digitalWrite(pinOutControlAmplifierPower, LOW);
+			digitalWrite(pinOutControlHeadsetPower, LOW);
+		}
+		
+		void process() {
+			if (isPowerButtonPressed) changeMode(normalMode);
+		}
+		void finalize() {}
+		void ISR_ButtonWhenSlept () {
+			changeMode(normalMode);
+		}
+		void ISR_SleepModeBlink () {
+			digitalWrite(pinOutIndicateStandByModeNormal, 
+				ledNotNormalMode ? HIGH : LOW
+				);
+			ledNotNormalMode = !ledNotNormalMode;
+			attachInterrupt(timer, ISR_SleepModeLEDBlink, 
+				ledNotNormalMode ? timeLedOnSleepMode : timeLedOffSleepMode
+				);
+		}
 		
 	}
-	else
-	{
-		if (isHeadsetButtonPressed) changeHeadsetMode(!isHeadsetRequested);
-		if (isFailure) changeMode(modeFailure);
-		if (isPowerButtonPressed) changeMode(modeStandBy);
+
+	class StandByMode : Mode {
+		StandByMode () {}
+		void initialize () {
+			digitalWrite(pinOutControlSleepMode, LOW);
+			digitalWrite(pinOutIndicateStandByModeNormal, LOW);
+			digitalWrite(pinOutControlAmplifierEnable, LOW);
+			digitalWrite(pinOutControlAmplifierPower, LOW);
+			digitalWrite(pinOutControlHeadsetPower, LOW);	
+		}
+		void process() {
+			if (isPowerButtonPressed) changeMode(modeNormal);
+		}
+		void finalize() {}
 	}
-	
-}
-
-void sleep(bool isNeedInitialize) {
-	if (isNeedInitialize)
-	{
-		//interrupts
-		attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
-		ISR_SleepModeLEDBlink();
-		
-		//Output
-		digitalWrite(pinOutControlSleepMode, HIGH);
-		digitalWrite(pinOutIndicateStandByModeNormal, LOW);
-		digitalWrite(pinOutControlAmplifierEnable, LOW);
-		digitalWrite(pinOutControlAmplifierPower, LOW);
-		digitalWrite(pinOutControlHeadsetPower, LOW);
+	class FailureMode : Mode {
+		FailureMode () {}
+		void initialize () {
+			ISR_FailureModeBlink();
+		}
+		void process() {
+			wait(timeFailureWait);
+			if (checkDefenceInputs())
+				sleepAfterFailure();
+			else
+				changeMode(NormalMode);
+		}
+		void finalize() {}
+		void ISR_FailureModeBlink() {
+			
+		}
 	}
-	else
-	{
-		if (isPowerButtonPressed) changeMode(modeNormal);
+	/*
+	class FailureMode : Mode {
+		FailureMode () {}
+		void initialize () {}
+		void process() {}
+		void finalize() {}
 	}
-}
-
-void standBy(bool isNeedInitialize) {
-	if (isNeedInitialize)
-	{
-		//interrupts
-		ISR_AudioOutput();
-		attachInterrupt(digitalPinToInterrupt(pinInControlHeadset), ISR_AudioOutput, FALLING);
-
-		//Outputs
-		digitalWrite(pinOutControlSleepMode, LOW);
-		digitalWrite(pinOutIndicateStandByModeNormal, LOW);
-		digitalWrite(pinOutControlAmplifierEnable, LOW);
-		digitalWrite(pinOutControlAmplifierPower, LOW);
-		digitalWrite(pinOutControlHeadsetPower, LOW);	
-
-	}
-	else
-	{
-		if (isPowerButtonPressed) changeMode(modeNormal);
-		
-	}
-}
-
-void ISR_SleepModeBlink () {
-	digitalWrite(pinOutIndicateStandByModeNormal, 
-		ledNotNormalMode ? HIGH : LOW
-		);
-	ledNotNormalMode = !ledNotNormalMode;
-	attachInterrupt(timer, ISR_SleepModeLEDBlink, 
-		ledNotNormalMode ? timeLedOnSleepMode : timeLedOffSleepMode
-		);
-}
-
-void ISR_ButtonWhenSlept () {
-	mode = modeNormal
-}
-
-void ISR_AudioOutput() {
-	digitalWrite(pinOutIndicateHeadsetMode, 
-		ledHeadsetMode ? HIGH : LOW
-		);
-	ledHeadsetMode = !ledHeadsetMode;
+	*/
 }
