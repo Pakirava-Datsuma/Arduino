@@ -1,37 +1,36 @@
 	//pins
-	enum pin { 
-		pinInControlButton = 5;
-		pinInControlComp = 6;
-		pinInControlNormalMode = 7;
-		pinInControlHeadset = 8;
-		pinInDefenceIpositive1 = ;
-		pinInDefenceInegative1 = ;
-		pinInDefenceIpositive2 = ;
-		pinInDefenceInegative2 = ;
-		pinInDefenceA1 = ;
-		pinInDefenceA2 = ;
+	enum class pin {
+		InControlButton = 5,
+		InControlComp = 6,
+		InControlNormalMode = 7,
+		InControlHeadset = 8,
+		InDefenceIpositive1,
+		InDefenceInegative1,
+		InDefenceIpositive2,
+		InDefenceInegative2,
+		InDefenceA1,
+		InDefenceA2,
 
-		pinOutControlAmplifierEnable = ;
-		pinOutControlAmplifierPower = ;
-		pinOutControlHeadsetPower = ;
-		pinOutControlSleepMode = ;
-		pinOutIndicateStandByModeNormal = ;
-		pinOutIndicateStandByModeNotNormal = ;
-		pinOutIndicateHeadsetMode = ;
-		pinOutErrorI1 = ;
-		pinOutErrorI2 = ;
-		pinOutErrorA1 = ;
-		pinOutErrorA2 = ;
-	}
+		OutControlAmplifierEnable  ,
+		OutControlAmplifierPower  ,
+		OutControlHeadsetPower  ,
+		OutControlSleepMode  ,
+		OutIndicateStandByModeNormal  ,
+		OutIndicateStandByModeNotNormal  ,
+		OutIndicateHeadsetMode  ,
+		OutErrorI1  ,
+		OutErrorI2  ,
+		OutErrorA1  ,
+		OutErrorA2  ,
+	};
 	
 	volatile bool ledNotNormalMode;
 	volatile bool ledHeadsetMode;
-	
-	Modes modes;
+
+	Modes* modes;
 			
 void setup() {
-	pinMode(pinInControlNormalMode, DIGITAL);
-	pinMode(pinIsCompOn, DIGITAL);
+
 	
 	modes = new Modes();	
 }
@@ -41,44 +40,96 @@ void loop() {
 }
 
 class Modes {
-public:	
-	Modes () {}
-	
-	void process() {
-		checkIO();
-		currentMode::process();
-	}
+public:
+    void Modes();
+
+    void changeMode(Mode newMode);
 
 protected:
-	static Mode currentMode;
-	static Mode normalMode = new NormalMode();
-	static Mode sleepMode = new SleepMode();
-	static Mode standByMode = new StandByMode();
-	static Mode failureMode = new FailureMode();
+    static Mode currentMode;
+    static Mode normalMode = new NormalMode();
+    static Mode sleepMode = new SleepMode();
+    static Mode standByMode = new StandByMode();
+    static Mode failureMode = new FailureMode();
 
-	static bool isNormalModeRequested;
-	static bool isCompOn;
-	static bool isHeadsetRequested;
-	
+    static bool isNormalModeRequested;
+    static bool isCompOn;
+    static bool isHeadsetRequested;
 
-	void changeMode (Mode newMode) {
-		isModeChanged = (currentMode != newMode);
-		if (isModeChanged) {
-			detachInterrupts();
-			if (currentMode != null) currentMode::finalize();
-			currentMode = newMode;
-			currentMode::initialize();
-			attachInterrupts();
-		}
-	}
+    bool checkIO();
 
-	class Mode {
+    void process();
+
+    class Mode;
+
+    class NormalMode;
+
+    class SleepMode;
+    
+    class FailureSleepMode;
+
+    class StandByMode;
+
+    class FailureMode;
+};
+
+    void Modes::Modes() {
+        for (auto &&pin :pins) {
+            pinMode(pin, DIGITAL);
+        }
+/*        pinMode(pin::InControlNormalMode, DIGITAL);
+        pinMode(pin::InControlComp, DIGITAL);
+        pinMode(pin::InControlButton, DIGITAL);
+        pinMode(pin::InControlComp, DIGITAL);
+        pinMode(pin::InControlNormalMode, DIGITAL);
+        pinMode(pin::InControlHeadset, DIGITAL);
+        pinMode(pin::InDefenceIpositive1, DIGITAL);
+        pinMode(pin::InDefenceInegative1, DIGITAL);
+        pinMode(pin::InDefenceIpositive2, DIGITAL);
+        pinMode(pin::InDefenceInegative2, DIGITAL);
+        pinMode(pin::InDefenceA1, DIGITAL);
+        pinMode(pin::InDefenceA2, DIGITAL);
+        pinMode(pin::OutControlAmplifierEnable  , DIGITAL);
+        pinMode(pin::OutControlAmplifierPower  , DIGITAL);
+        pinMode(pin::OutControlHeadsetPower  , DIGITAL);
+        pinMode(pin::OutControlSleepMode  , DIGITAL);
+        pinMode(pin::OutIndicateStandByModeNormal  , DIGITAL);
+        pinMode(pin::OutIndicateStandByModeNotNormal  , DIGITAL);
+        pinMode(pin::OutIndicateHeadsetMode  , DIGITAL);
+        pinMode(pin::OutErrorI1  , DIGITAL);
+        pinMode(pin::OutErrorI2  , DIGITAL);
+        pinMode(pin::OutErrorA1  , DIGITAL);
+        pinMode(pin::OutErrorA2, DIGITAL);
+*/
+
+        changeMode(normalMode);
+    }
+
+    void Modes::process() {
+        checkIO();
+        currentMode::process();
+    }
+
+
+    void Modes::changeMode(Mode newMode) {
+        bool isModeChanged = currentMode != newMode;
+        if (isModeChanged) {
+            detachInterrupts();
+            if (currentMode != null) currentMode::finalize();
+            currentMode = newMode;
+            currentMode::initialize();
+            attachInterrupts();
+        }
+    }
+
+
+	class Modes::Mode {
 		virtual void initialize();
 		virtual void process();
 		virtual void finalize();
-	}
+	};
 
-	class NormalMode : Mode {
+	class Modes::NormalMode : Mode {
 		
 		NormalMode () {
 		}
@@ -106,9 +157,9 @@ protected:
 		}
 		void ISR_Sleep() {
 			}
-	}
+	};
 
-	class SleepMode : Mode {
+	class Modes::SleepMode : Mode {
 		
 		final int timeLedOn = 3000;
 		final int timeLedOff = 3000;
@@ -145,9 +196,16 @@ protected:
 				);
 		}
 		
-	}
+	};
 
-	class StandByMode : Mode {
+	class Modes::FailureSleepMode : SleepMode {
+          void initialize () {
+              SleepMode::initialize();
+              FailureMode::ISR_FailureModeBlink();
+          }
+        };
+
+	class Modes::StandByMode : Mode {
 		StandByMode () {}
 		void initialize () {
 			digitalWrite(pinOutControlSleepMode, LOW);
@@ -160,8 +218,8 @@ protected:
 			if (isPowerButtonPressed) changeMode(modeNormal);
 		}
 		void finalize() {}
-	}
-	class FailureMode : Mode {
+	};
+	class Modes::FailureMode : Mode {
 		FailureMode () {}
 		void initialize () {
 			ISR_FailureModeBlink();
@@ -169,7 +227,7 @@ protected:
 		void process() {
 			wait(timeFailureWait);
 			if (checkDefenceInputs())
-				sleepAfterFailure();
+				changeMode(failureSleepMode);
 			else
 				changeMode(NormalMode);
 		}
@@ -177,13 +235,13 @@ protected:
 		void ISR_FailureModeBlink() {
 			
 		}
-	}
+	};
 	/*
 	class FailureMode : Mode {
 		FailureMode () {}
 		void initialize () {}
 		void process() {}
 		void finalize() {}
-	}
+	};
 	*/
-}
+
