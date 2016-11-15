@@ -1,5 +1,5 @@
 	//pins
-	enum class pin {
+	enum class pins {
 		InControlButton = 5,
 		InControlComp = 6,
 		InControlNormalMode = 7,
@@ -23,58 +23,75 @@
 		OutErrorA1  ,
 		OutErrorA2  ,
 	};
-	
-	volatile bool ledNotNormalMode;
-	volatile bool ledHeadsetMode;
 
-	Modes* modes;
-			
-void setup() {
+    class Controller {
+	public:
+        Controller();
+        class Mode {
+			Controller* controller;
+			Mode(Controller* controller): controller(controller) {};
+            virtual void initialize();
+            virtual void process();
+            virtual void finalize();
+        };
 
-	
-	modes = new Modes();	
-}
+        bool isNormalModeRequested;
+		bool isCompOn;
+		bool isHeadsetRequested;
+
+		bool checkIO();
+
+		void process();
+		void changeMode(Mode*);
+
+
+        class NormalMode;
+        class SleepMode;
+        class FailureSleepMode;
+        class StandByMode;
+        class FailureMode;
+
+		volatile bool ledNotNormalMode;
+		volatile bool ledHeadsetMode;
+
+		Mode *currentMode;
+		Mode *normalMode;
+		Mode *sleepMode;
+		Mode *standByMode;
+		Mode *failureMode;
+		Mode *failureSleepMode;
+	};
+
+	Controller *controller;
+
+	void setup() {
+
+    	controller = new Controller();
+
+
+	};
 
 void loop() {
-	modes::processCurrentMode();
-}
-
-class Modes {
-public:
-    void Modes();
-
-    void changeMode(Mode newMode);
-
-protected:
-    static Mode currentMode;
-    static Mode normalMode = new NormalMode();
-    static Mode sleepMode = new SleepMode();
-    static Mode standByMode = new StandByMode();
-    static Mode failureMode = new FailureMode();
-
-    static bool isNormalModeRequested;
-    static bool isCompOn;
-    static bool isHeadsetRequested;
-
-    bool checkIO();
-
-    void process();
-
-    class Mode;
-
-    class NormalMode;
-
-    class SleepMode;
-    
-    class FailureSleepMode;
-
-    class StandByMode;
-
-    class FailureMode;
+	controller*::process();
 };
+/*
+void main()
+{
+    setup();
+    while (1)
+    {
+        loop();
+    }
+};
+*/
+    Controller::Controller() {
+		normalMode = new NormalMode(this);
+		sleepMode = new SleepMode(this);
+		standByMode = new StandByMode(this);
+		failureMode = new FailureMode(this);
+		failureSleepMode = new FailureSleepMode(this);
 
-    void Modes::Modes() {
-        for (auto &&pin :pins) {
+		for (pins &&pin :pins) {
             pinMode(pin, DIGITAL);
         }
 /*        pinMode(pin::InControlNormalMode, DIGITAL);
@@ -105,52 +122,43 @@ protected:
         changeMode(normalMode);
     }
 
-    void Modes::process() {
-        checkIO();
-        currentMode::process();
-    }
+    void Controller::process() {
+        readInputs();
+        currentMode*::process();
+    };
 
 
-    void Modes::changeMode(Mode newMode) {
-        bool isModeChanged = currentMode != newMode;
+    void Controller::changeMode(Controller::Mode* newMode) {
+        bool isModeChanged = *currentMode != *newMode;
         if (isModeChanged) {
             detachInterrupts();
-            if (currentMode != null) currentMode::finalize();
+            if (currentMode != null) currentMode*::finalize();
             currentMode = newMode;
-            currentMode::initialize();
+            currentMode*::initialize();
             attachInterrupts();
         }
-    }
+    };
 
+	class NormalMode : Controller::Mode {
 
-	class Modes::Mode {
-		virtual void initialize();
-		virtual void process();
-		virtual void finalize();
-	};
-
-	class Modes::NormalMode : Mode {
-		
-		NormalMode () {
-		}
 		void initialize () {
 //			HeadsetLED
 //			HeadsetButton
-			attachInterrupt(digitalPinToInterrupt(pinInControlHeadset), ISR_AudioOutput, FALLING);
+			attachInterrupt(digitalPinToInterrupt(pins::InControlHeadset), ISR_AudioOutput, FALLING);
 			
 //			ModeButton
-			attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_Sleep, FALLING);
+			attachInterrupt(digitalPinToInterrupt(pins::InControlButton), ISR_Sleep, FALLING);
 		}
 		void process() {
 			if (isHeadsetButtonPressed) changeHeadsetMode(!isHeadsetRequested);
-			if (isFailure) changeMode(failureMode);
-			if (isPowerButtonPressed) changeMode(standByMode);		
+			if (isFailure) controller*::changeMode(failureMode);
+			if (isPowerButtonPressed) controller*::changeMode(standByMode);
 		}
 		void finalize() {
 			
 		}
 		void ISR_AudioOutput() {
-			digitalWrite(pinOutIndicateHeadsetMode, 
+			digitalWrite(pins::OutIndicateHeadsetMode, 
 				ledHeadsetMode ? HIGH : LOW
 				);
 			ledHeadsetMode = !ledHeadsetMode;
@@ -159,35 +167,32 @@ protected:
 			}
 	};
 
-	class Modes::SleepMode : Mode {
+	class SleepMode : Controller::Mode {
 		
 		final int timeLedOn = 3000;
 		final int timeLedOff = 3000;
-		
-		SleepMode () {
-		}
-		
+
 		void initialize () {
 			//interrupts
-			attachInterrupt(digitalPinToInterrupt(pinInControlButton), ISR_ButtonWhenSlept, FALLING);
+			attachInterrupt(digitalPinToInterrupt(pins::InControlButton), ISR_ButtonWhenSlept, FALLING);
 			ISR_SleepModeLEDBlink();
 			//Output
-			digitalWrite(pinOutControlSleepMode, HIGH);
-			digitalWrite(pinOutIndicateStandByModeNormal, LOW);
-			digitalWrite(pinOutControlAmplifierEnable, LOW);
-			digitalWrite(pinOutControlAmplifierPower, LOW);
-			digitalWrite(pinOutControlHeadsetPower, LOW);
+			digitalWrite(pins::OutControlSleepMode, HIGH);
+			digitalWrite(pins::OutIndicateStandByModeNormal, LOW);
+			digitalWrite(pins::OutControlAmplifierEnable, LOW);
+			digitalWrite(pins::OutControlAmplifierPower, LOW);
+			digitalWrite(pins::OutControlHeadsetPower, LOW);
 		}
 		
 		void process() {
-			if (isPowerButtonPressed) changeMode(normalMode);
+			if (isPowerButtonPressed) controller*::changeMode(normalMode);
 		}
 		void finalize() {}
 		void ISR_ButtonWhenSlept () {
-			changeMode(normalMode);
+			controller*::changeMode(normalMode);
 		}
 		void ISR_SleepModeBlink () {
-			digitalWrite(pinOutIndicateStandByModeNormal, 
+			digitalWrite(pins::OutIndicateStandByModeNormal, 
 				ledNotNormalMode ? HIGH : LOW
 				);
 			ledNotNormalMode = !ledNotNormalMode;
@@ -198,38 +203,36 @@ protected:
 		
 	};
 
-	class Modes::FailureSleepMode : SleepMode {
+	class FailureSleepMode : Controller::SleepMode {
           void initialize () {
-              SleepMode::initialize();
-              FailureMode::ISR_FailureModeBlink();
+			  SleepMode::initialize();
+			  FailureMode::ISR_FailureModeBlink();
           }
-        };
+    };
 
-	class Modes::StandByMode : Mode {
-		StandByMode () {}
+	class StandByMode : Controller::Mode {
 		void initialize () {
-			digitalWrite(pinOutControlSleepMode, LOW);
-			digitalWrite(pinOutIndicateStandByModeNormal, LOW);
-			digitalWrite(pinOutControlAmplifierEnable, LOW);
-			digitalWrite(pinOutControlAmplifierPower, LOW);
-			digitalWrite(pinOutControlHeadsetPower, LOW);	
-		}
+			digitalWrite(pins::OutControlSleepMode, LOW);
+			digitalWrite(pins::OutIndicateStandByModeNormal, LOW);
+			digitalWrite(pins::OutControlAmplifierEnable, LOW);
+			digitalWrite(pins::OutControlAmplifierPower, LOW);
+			digitalWrite(pins::OutControlHeadsetPower, LOW);	
+		};
 		void process() {
-			if (isPowerButtonPressed) changeMode(modeNormal);
-		}
-		void finalize() {}
+			if (isPowerButtonPressed) controller*::changeMode(normalMode);
+		};
+		void finalize() {};
 	};
-	class Modes::FailureMode : Mode {
-		FailureMode () {}
+	class FailureMode : Controller::Mode {
 		void initialize () {
 			ISR_FailureModeBlink();
 		}
 		void process() {
 			wait(timeFailureWait);
 			if (checkDefenceInputs())
-				changeMode(failureSleepMode);
+				controller*::changeMode(failureSleepMode);
 			else
-				changeMode(NormalMode);
+				controller*::changeMode(normalMode);
 		}
 		void finalize() {}
 		void ISR_FailureModeBlink() {
